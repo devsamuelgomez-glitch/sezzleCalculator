@@ -75,7 +75,7 @@ Alternative: one endpoint per operation (`/add`, `/sqrt`, ...). Per-operation ro
 
 **float64**, not a decimal type. Alternative: `math/big` or a decimal library, which gives exact `0.1 + 0.2 = 0.3`. Trade-off: float64 is native to JSON, `math.Pow` and `math.Sqrt`, needs no dependency, and is what a calculator user expects at 12 digits; a decimal type would add a dependency (or hand-rolled code) and still cannot represent `sqrt(2)` or fractional powers exactly.
 
-- Every result is checked with `math.IsNaN` / `math.IsInf`; failures return `ErrNonFinite`. Overflow, `0^-1` and `(-8)^0.5` all land there.
+- Every result is checked with `math.IsNaN` / `math.IsInf`; failures return `ErrNonFiniteResult`. Overflow, `0^-1` and `(-8)^0.5` all land there.
 - The backend returns the raw float64 (Go's shortest round-trip form), so `0.1 + 0.2` yields `0.30000000000000004`. This is the documented limitation.
 - The **frontend** hides it for display: round to 12 significant digits (`Number(x.toPrecision(12))`), then print without trailing zeros. The API stays honest and the UI stays friendly. Integers above 2^53 lose precision.
 
@@ -88,7 +88,7 @@ backend/
   internal/api/          handler, request/response types, validation, error mapping, static serving
 ```
 
-- `calc` exposes `Apply(op Operation, a, b float64) (float64, error)`, an `Operation` string type with its arity (`Arity() int`), and sentinel errors `ErrDivisionByZero`, `ErrNegativeSqrt`, `ErrNonFinite`, `ErrUnknownOperation`. Pure functions; table-driven tests.
+- `calc` exposes `Calculate(op Operation, operands ...float64) (float64, error)`, an `Operation` string type with its arity (`Arity() int`), sentinel errors `ErrDivisionByZero`, `ErrNegativeSqrt`, `ErrNonFiniteResult`, `ErrUnknownOperation`, `ErrInvalidOperandCount`, and a typed `*OperandCountError` (matches `ErrInvalidOperandCount`). The variadic form makes arity a domain error rather than a caller convention; `-0` results are normalized to `+0`. Pure functions; table-driven tests.
 - `api` decodes into `struct{Operation string; A, B *float64}` (pointers distinguish absent from zero), uses `json.Decoder` with `DisallowUnknownFields` and `http.MaxBytesReader`, validates arity, calls `calc.Apply`, and maps errors with `errors.Is` in one `switch`. `New(staticFS fs.FS) http.Handler` returns a mux; no globals.
 - `cmd/server`: reads `PORT` (default `8080`) and `STATIC_DIR` (default empty, meaning API only); `http.Server` with read/header/write timeouts; `signal.NotifyContext` for SIGINT/SIGTERM then `Shutdown` with a 10 s deadline. A recover middleware turns panics into `500 internal`.
 - Validation lives in `api` (shape and arity) and `calc` (domain rules). `api` never does math; `calc` never sees JSON.
