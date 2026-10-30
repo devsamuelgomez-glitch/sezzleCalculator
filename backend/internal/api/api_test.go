@@ -364,3 +364,41 @@ func TestCalculate_UnknownOperationFromCalculatorIsClientError(t *testing.T) {
 		t.Errorf("body = %s, want %s", got, want)
 	}
 }
+
+func TestSecurityHeaders(t *testing.T) {
+	static := fstest.MapFS{"index.html": {Data: []byte("<html></html>")}}
+	h := api.New(api.CalculatorFunc(calc.Calculate), discardLogger(), static)
+
+	tests := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{"api success", http.MethodPost, calculatePath, `{"operation":"add","a":1,"b":2}`},
+		{"api error", http.MethodPost, calculatePath, `{`},
+		{"method not allowed", http.MethodGet, calculatePath, ""},
+		{"healthz", http.MethodGet, "/healthz", ""},
+		{"static index", http.MethodGet, "/", ""},
+		{"unknown api path", http.MethodGet, "/api/nope", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+
+			want := map[string]string{
+				"X-Content-Type-Options":  "nosniff",
+				"Referrer-Policy":         "no-referrer",
+				"Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'",
+			}
+			for k, v := range want {
+				if got := rec.Header().Get(k); got != v {
+					t.Errorf("%s = %q, want %q", k, got, v)
+				}
+			}
+		})
+	}
+}

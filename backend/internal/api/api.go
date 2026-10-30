@@ -41,7 +41,7 @@ func New(c Calculator, logger *slog.Logger, staticFS fs.FS) http.Handler {
 	if staticFS != nil {
 		mux.Handle("/", spaHandler(staticFS))
 	}
-	return withLogging(logger, mux)
+	return withSecurityHeaders(withLogging(logger, mux))
 }
 
 type handler struct {

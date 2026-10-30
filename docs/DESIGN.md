@@ -90,13 +90,14 @@ backend/
 ```
 
 - `calc` exposes `Calculate(op Operation, operands ...float64) (float64, error)`, an `Operation` string type with its arity (`Arity() int`), sentinel errors `ErrDivisionByZero`, `ErrNegativeSqrt`, `ErrNonFiniteResult`, `ErrUnknownOperation`, `ErrInvalidOperandCount`, and a typed `*OperandCountError` (matches `ErrInvalidOperandCount`). The variadic form makes arity a domain error rather than a caller convention; `-0` results are normalized to `+0`. Pure functions; table-driven tests.
-- `api` decodes into `struct{Operation string; A, B *float64}` (pointers distinguish absent from zero), uses `json.Decoder` with `DisallowUnknownFields` and `http.MaxBytesReader`, rejects trailing data and non-JSON content types, validates arity, calls the calculator, and maps errors with `errors.Is`/`errors.As` in one function (`mapError`). `New(c Calculator, logger *slog.Logger, staticFS fs.FS) http.Handler` returns the mux wrapped in logging and panic recovery; `Calculator` is a one-method interface (`calc.Calculate` via `api.CalculatorFunc`) so tests can fake it. No globals.
+- `api` decodes into `struct{Operation string; A, B *float64}` (pointers distinguish absent from zero), uses `json.Decoder` with `DisallowUnknownFields` and `http.MaxBytesReader`, rejects trailing data and non-JSON content types, validates arity, calls the calculator, and maps errors with `errors.Is`/`errors.As` in one function (`mapError`). `New(c Calculator, logger *slog.Logger, staticFS fs.FS) http.Handler` returns the mux wrapped in security headers, logging and panic recovery; `Calculator` is a one-method interface (`calc.Calculate` via `api.CalculatorFunc`) so tests can fake it. No globals.
 - `cmd/server`: reads `PORT` (default `8080`) and `STATIC_DIR` (default empty, meaning API only); `http.Server` with read/header/write timeouts; `signal.NotifyContext` for SIGINT/SIGTERM then `Shutdown` with a 10 s deadline. A recover middleware turns panics into `500 internal`.
 - Validation lives in `api` (shape and arity) and `calc` (domain rules). `api` never does math; `calc` never sees JSON.
 
 ### Serving model and CORS
 
 - **Production:** the Go binary serves `STATIC_DIR` (Vite build) at `/` with `index.html` fallback, and the API under `/api/v1`. Same origin, so **no CORS headers**. Alternative: separate nginx container with CORS, rejected for the single-Dockerfile requirement.
+- **Headers:** every response carries `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` and `Content-Security-Policy: default-src 'self'; frame-ancestors 'none'`. The built app loads only same-origin scripts and styles, so the strict CSP costs nothing.
 - **Development:** Vite dev server proxies `/api` to `localhost:8080`. Browser still sees one origin, so no CORS in dev either. Trade-off: a third-party client on another origin would be blocked by design; add an allow-list only if that need appears.
 
 ## Frontend Design
@@ -105,16 +106,19 @@ Vite + React + TypeScript (strict). Three layers, each testable alone.
 
 ```
 frontend/src/
-  calculator/reducer.ts    pure state machine: (state, action) -> state
-  calculator/format.ts     pure display formatting (12 significant digits)
-  api/client.ts            createClient(fetchImpl = fetch) -> { calculate(req) }
+  state/calculator.ts      pure reducer: (state, action) -> state; emits request intents, never calls the API
+  state/format.ts          display formatting (12 significant digits)
+  api/client.ts            createCalculatorClient({ fetchImpl }) -> { calculate(req, { signal }) }
+  api/messages.ts          server error code -> user-facing message
   api/types.ts             request/response/error types mirroring the contract
+  hooks/useCalculator.ts   wires reducer + client; aborts the in-flight request on clear/unmount
   components/              Display, Keypad, Key (presentational, props only)
-  App.tsx                  wires reducer + client; the only stateful component
+  keyboard.ts              keydown -> reducer actions
+  App.tsx                  wires the hook, keyboard listener and components
 ```
 
-- **Reducer** actions: `digit`, `decimal`, `operator`, `equals`, `clear`, `negate`, `percent`, `sqrt`, plus `result` and `error` dispatched when the API replies. State holds `display`, `accumulator`, `pendingOp`, `status` (`idle | loading | error`), `errorMessage`. It does no I/O; `equals` is handled by `App` calling the client then dispatching `result`/`error`. Alternative: Redux or a state library, rejected as unnecessary for one screen.
-- **API client** takes an injectable `fetch`, so tests pass a stub. It maps a non-2xx body to a typed `ApiError { code, message }` and network failures to `NetworkError`. No retries.
+- **Reducer** actions: `digit`, `decimal`, `toggleSign`, `backspace`, `clear`, `selectBinaryOp`, `selectUnaryOp`, `equals`, plus `resultReceived` and `failed` dispatched when the API replies. State holds `entry` (the display text), `left`, `pendingOp`, `status` (`idle | entering | awaiting-result | error`) and `error`. It does no I/O: when a result is needed it sets `request` and `status: 'awaiting-result'`; `useCalculator` makes the call in an effect and dispatches `resultReceived` or `failed`. Input is ignored while a request is in flight, except `clear`, which discards it (the effect cleanup aborts the fetch, and the reducer ignores any late reply). Alternative: Redux or a state library, rejected as unnecessary for one screen.
+- **API client** takes an injectable `fetch`, so tests pass a stub. It maps a non-2xx body to a typed `ApiError { status, code, message }` and network failures to `NetworkError`; an aborted call rethrows the abort. No retries.
 - **Components** are presentational: no fetch, no reducer logic, props in and callbacks out.
 - **Validation** lives in two places by intent: the **reducer** prevents bad input (one decimal point, no leading-zero runs, digit cap) so the UI cannot construct invalid numbers; the **backend** is the authority on arithmetic validity (division by zero etc.) and the UI displays its `message`. The client does not duplicate domain rules.
 - Keyboard input is supported by mapping `keydown` to the same actions.

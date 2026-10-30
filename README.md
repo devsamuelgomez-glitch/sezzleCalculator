@@ -175,7 +175,7 @@ The full reasoning is in [docs/DESIGN.md](docs/DESIGN.md). The short version:
 ## Testing
 
 ```sh
-make test    # go test ./... and vitest run
+make test    # go test ./... and vitest run (installs frontend dependencies with npm ci if needed)
 make cover   # backend/coverage.out + coverage.html, frontend/coverage/ (vitest + v8)
 make lint    # gofmt, go vet, tsc --noEmit, eslint, prettier --check
 ```
@@ -185,9 +185,9 @@ Numbers below are from `make cover` ([docs/COVERAGE.md](docs/COVERAGE.md)):
 | Layer                          | Coverage                   |
 | ------------------------------ | -------------------------- |
 | Backend `internal/calc`        | 100.0% of statements       |
-| Backend `internal/api`         | 97.0% of statements        |
+| Backend `internal/api`         | 97.2% of statements        |
 | Backend `cmd/server`           | 34.0% of statements        |
-| **Backend total**              | **82.5% of statements**    |
+| **Backend total**              | **83.0% of statements**    |
 | **Frontend**                   | 98.25% statements, 97.4% branches, 97.56% functions, 99.32% lines |
 
 The frontend has 132 tests in 6 files. The low `cmd/server` figure is `main` and `run`, which are process wiring with no direct test; `loadConfig` and `serve` are tested. The frontend report counts only files the tests load.

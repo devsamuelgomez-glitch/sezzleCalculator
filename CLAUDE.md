@@ -22,8 +22,6 @@ PROMPTS.md    Log of AI prompts used
 CLAUDE.md     This file
 ```
 
-`backend/` and `frontend/` are created with their first real code.
-
 ## Engineering principles
 
 - **Stdlib-first Go.** Use `net/http`; no web framework.

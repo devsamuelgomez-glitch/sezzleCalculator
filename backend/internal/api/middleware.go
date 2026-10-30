@@ -61,3 +61,15 @@ func withLogging(logger *slog.Logger, next http.Handler) http.Handler {
 		next.ServeHTTP(rec, r)
 	})
 }
+
+// withSecurityHeaders sets conservative headers on every response. The app
+// loads only same-origin scripts and styles, so the CSP can be strict.
+func withSecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("Referrer-Policy", "no-referrer")
+		h.Set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'")
+		next.ServeHTTP(w, r)
+	})
+}
