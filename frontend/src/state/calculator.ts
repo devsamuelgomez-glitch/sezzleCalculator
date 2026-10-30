@@ -3,6 +3,7 @@
 // `failed`, which the caller dispatches after talking to the API.
 
 import type { CalculateRequest } from '../api/types';
+import { formatResult } from './format';
 
 export const MAX_DIGITS = 15;
 
@@ -227,7 +228,7 @@ function receiveResult(state: CalculatorState, value: number): CalculatorState {
 
   const base = {
     ...state,
-    entry: String(value),
+    entry: formatResult(value),
     lastResult: value,
     request: null,
     onResult: null,
@@ -277,7 +278,8 @@ export function calculatorReducer(
     case 'failed':
       return fail(state, action.message);
     case 'clear':
-      return state.status === 'awaiting-result' ? state : initialState;
+      // Also abandons a request in flight; its late reply is then ignored.
+      return initialState;
   }
 
   if (state.status === 'awaiting-result') return state;

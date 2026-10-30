@@ -277,9 +277,14 @@ describe('requests in flight', () => {
     ['binary operator', op('multiply')],
     ['unary operator', unary('sqrt')],
     ['equals', equals],
-    ['clear', clear],
   ])('ignores %s', (_name, action) => {
     expect(from(inFlight, action)).toEqual(inFlight);
+  });
+
+  it('abandons the request on clear and ignores its late result', () => {
+    const cleared = from(inFlight, clear);
+    expect(cleared).toEqual(initialState);
+    expect(from(cleared, result(5))).toEqual(initialState);
   });
 
   it('ignores a stale result when nothing is in flight', () => {
