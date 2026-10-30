@@ -1,0 +1,28 @@
+# Go
+*.exe
+*.test
+*.out
+coverage.*
+/backend/bin/
+
+# Node
+node_modules/
+dist/
+build/
+coverage/
+*.log
+.eslintcache
+.vite/
+
+# Env
+.env*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
