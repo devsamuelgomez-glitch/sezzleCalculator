@@ -1,0 +1,16 @@
+.git
+**/node_modules
+**/coverage
+**/dist
+backend/bin
+backend/coverage.*
+*.exe
+*.out
+*.log
+.env*
+.vscode
+.idea
+Dockerfile
+.dockerignore
+docs
+*.md

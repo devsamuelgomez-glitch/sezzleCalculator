@@ -35,7 +35,7 @@ CLAUDE.md     This file
 
 ## Commands
 
-Placeholders; not implemented yet.
+
 
 | Command              | Purpose                                  |
 | -------------------- | ---------------------------------------- |
@@ -43,7 +43,9 @@ Placeholders; not implemented yet.
 | `make cover`         | Generate coverage reports for both layers|
 | `make run-backend`   | Start the Go API                         |
 | `make run-frontend`  | Start the frontend dev server            |
-| `make docker`        | Build the Docker image                   |
+| `make docker-build`  | Build the Docker image                   |
+| `make docker-run`    | Run the image on port 8080               |
+| `make lint`          | gofmt, go vet, tsc, eslint, prettier     |
 
 ## Definition of done
 
