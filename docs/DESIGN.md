@@ -39,6 +39,7 @@ Alternative: one endpoint per operation (`/add`, `/sqrt`, ...). Per-operation ro
 | 400  | `missing_operand`     | `a` missing, or `b` missing for a binary operation|
 | 400  | `unexpected_operand`  | `b` supplied to `sqrt`                            |
 | 405  | `method_not_allowed`  | Non-POST on `/api/v1/calculate`                   |
+| 415  | `unsupported_media_type` | `Content-Type` is not `application/json`       |
 | 422  | `division_by_zero`    | `divide` with `b == 0`                            |
 | 422  | `negative_sqrt`       | `sqrt` with `a < 0`                               |
 | 422  | `non_finite_result`   | Result is NaN or ±Inf (overflow, `0^-1`, `(-8)^0.5`) |
@@ -89,7 +90,7 @@ backend/
 ```
 
 - `calc` exposes `Calculate(op Operation, operands ...float64) (float64, error)`, an `Operation` string type with its arity (`Arity() int`), sentinel errors `ErrDivisionByZero`, `ErrNegativeSqrt`, `ErrNonFiniteResult`, `ErrUnknownOperation`, `ErrInvalidOperandCount`, and a typed `*OperandCountError` (matches `ErrInvalidOperandCount`). The variadic form makes arity a domain error rather than a caller convention; `-0` results are normalized to `+0`. Pure functions; table-driven tests.
-- `api` decodes into `struct{Operation string; A, B *float64}` (pointers distinguish absent from zero), uses `json.Decoder` with `DisallowUnknownFields` and `http.MaxBytesReader`, validates arity, calls `calc.Apply`, and maps errors with `errors.Is` in one `switch`. `New(staticFS fs.FS) http.Handler` returns a mux; no globals.
+- `api` decodes into `struct{Operation string; A, B *float64}` (pointers distinguish absent from zero), uses `json.Decoder` with `DisallowUnknownFields` and `http.MaxBytesReader`, rejects trailing data and non-JSON content types, validates arity, calls the calculator, and maps errors with `errors.Is`/`errors.As` in one function (`mapError`). `New(c Calculator, logger *slog.Logger, staticFS fs.FS) http.Handler` returns the mux wrapped in logging and panic recovery; `Calculator` is a one-method interface (`calc.Calculate` via `api.CalculatorFunc`) so tests can fake it. No globals.
 - `cmd/server`: reads `PORT` (default `8080`) and `STATIC_DIR` (default empty, meaning API only); `http.Server` with read/header/write timeouts; `signal.NotifyContext` for SIGINT/SIGTERM then `Shutdown` with a 10 s deadline. A recover middleware turns panics into `500 internal`.
 - Validation lives in `api` (shape and arity) and `calc` (domain rules). `api` never does math; `calc` never sees JSON.
 
