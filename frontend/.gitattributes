@@ -1,0 +1,2 @@
+# LF everywhere: gofmt, prettier and make reject or misbehave on CRLF checkouts.
+* text=auto eol=lf
