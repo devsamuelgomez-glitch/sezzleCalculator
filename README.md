@@ -214,4 +214,4 @@ The frontend has 132 tests in 6 files. The low `cmd/server` figure is `main` and
 
 ## AI usage
 
-Claude Code (Anthropic's CLI agent) was used throughout: writing the design doc first, then implementing each step as a separate commit (backend domain, API, frontend state, UI, build and packaging) with tests, running the linters and tests, and building and smoke-testing the Docker image. [CLAUDE.md](CLAUDE.md) holds the project rules the agent worked under. The prompt log is in [PROMPTS.md](PROMPTS.md); it is currently a stub and has not been filled in with the prompts used.
+Claude Code (Anthropic's CLI agent) was used throughout: writing the design doc first, then implementing each step as a separate commit (backend domain, API, frontend state, UI, build and packaging) with tests, running the linters and tests, and building and smoke-testing the Docker image. [CLAUDE.md](CLAUDE.md) holds the project rules the agent worked under. The prompts, with their intent and outcome, are logged in [PROMPTS.md](PROMPTS.md).
